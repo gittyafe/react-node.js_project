@@ -1,5 +1,5 @@
 import express from 'express';
-import { AppDataSource } from '../src/config/data-source';
+import { AppDataSource } from './config/data-source';
 
 const app = express();
 app.use(express.json());
@@ -17,3 +17,4 @@ AppDataSource.initialize()
   .catch((err) => {
     console.error('❌ Error during Data Source initialization:', err);
   });
+  
