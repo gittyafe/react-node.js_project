@@ -22,9 +22,8 @@ export class User {
   password: string;
 
   @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.STUDENT, // אם לא צוין אחרת, המשתמש הוא תלמיד
+    type: 'varchar',
+    default: UserRole.STUDENT,
   })
   role: UserRole;
 
