@@ -1,33 +1,29 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { UserRole } from './user-role.enum'; // יבוא של ה-Enum המרכזי
 
-// הגדרת סוגי ההרשאות (Enum) כדי למנוע שגיאות כתיב בהמשך
-export enum UserRole {
-  ADMIN = 'admin',
-  TEACHER = 'teacher',
-  STUDENT = 'student',
-}
-
-@Entity('users') // כך תקרא הטבלה ב-PostgreSQL
+@Entity('users') 
 export class User {
-  @PrimaryGeneratedColumn('uuid') // ייצר מזהה ייחודי אוטומטי (מחרוזת ארוכה)
+  // workaround TypeORM decorator signature resolution
+  // @ts-ignore
+  @PrimaryGeneratedColumn('uuid') 
   id: string;
 
   @Column({ type: 'varchar', length: 100 })
   fullName: string;
 
-  @Column({ type: 'varchar', unique: true }) // ה-unique מוודא שלא יירשמו שני משתמשים עם אותו אימייל
+  @Column({ type: 'varchar', unique: true }) 
   email: string;
 
-  @Column({ type: 'varchar' }) // הסיסמה שתישמר כאן חייבת להיות מוצפנת!
+  @Column({ type: 'varchar' }) 
   password: string;
 
   @Column({
     type: 'enum',
     enum: UserRole,
-    default: UserRole.STUDENT, // אם לא צוין אחרת, המשתמש הוא תלמיד
+    default: UserRole.STUDENT, // שימוש ב-Enum המיובא
   })
   role: UserRole;
 
-  @CreateDateColumn() // פיצ'ר נחמד ששומר אוטומטית את תאריך ההרשמה
+  @CreateDateColumn() 
   createdAt: Date;
 }

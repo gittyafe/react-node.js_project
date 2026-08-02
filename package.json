@@ -1,18 +1,12 @@
 {
-  "dependencies": {
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "pg": "^8.21.0",
-    "reflect-metadata": "^0.2.2",
-    "typeorm": "^1.0.0"
+  "name": "react-node.js_project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "build": "cd client && npm run build && cd ../server && npx tsc --noEmit"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/node": "^25.9.2",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^6.0.3"
-  },
-  "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only server/src/server.ts"
+    "concurrently": "^8.2.2"
   }
 }
