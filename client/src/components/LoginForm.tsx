@@ -8,8 +8,8 @@ import { FormField } from './FormField';
 import { LoadingSpinner } from './LoadingSpinner';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email('המייל שהזנת אינו תקין'),
+  password: z.string().min(6, 'הסיסמה חייבת להכיל לפחות 6 תווים'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -36,7 +36,7 @@ export const LoginForm: React.FC = () => {
       await login(data.email, data.password);
       navigate('/dashboard');
     } catch (error: any) {
-      const text = error.response?.data?.message || 'Login failed';
+      const text = error.response?.data?.message || 'ההתחברות נכשלה';
       setError('email', { message: text });
       setMessage(text);
     } finally {
@@ -45,9 +45,9 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
       <FormField
-        label="Email"
+        label="אימייל"
         name="email"
         type="email"
         placeholder="test@example.com"
@@ -56,7 +56,7 @@ export const LoginForm: React.FC = () => {
       />
 
       <FormField
-        label="Password"
+        label="סיסמה"
         name="password"
         type="password"
         placeholder="123456"
@@ -65,24 +65,21 @@ export const LoginForm: React.FC = () => {
       />
 
       {message ? (
-        <div className="space-y-2">
-          <p className="text-sm text-red-500">{message}</p>
+        <div className="form-message">
+          <p>{message}</p>
           {message.includes('register') ? (
-            <Link to="/register" className="text-sm font-medium text-blue-600 hover:underline">
-              Create an account
+            <Link to="/register" className="inline-link">
+              צור חשבון חדש
             </Link>
           ) : null}
         </div>
       ) : null}
 
       {isLoading ? (
-        <LoadingSpinner label="Signing you in..." />
+        <LoadingSpinner label="מתחבר לחשבון..." />
       ) : (
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
-        >
-          Login
+        <button type="submit" className="primary-button full-width-button">
+          התחבר
         </button>
       )}
     </form>

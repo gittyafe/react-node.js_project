@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: smarttest-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smarttest-api
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URI: mongodb://mongo:27017/SmartTest
+      PORT: 3000
+      JWT_SECRET: dev-secret
+      CLIENT_ORIGIN: http://localhost:5173
+    ports:
+      - '3000:3000'
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: smarttest-client
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - '5173:5173'
+
+volumes:
+  mongo_data:

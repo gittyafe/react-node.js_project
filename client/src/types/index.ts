@@ -2,10 +2,49 @@ export type UserRole = 'admin' | 'teacher' | 'student';
 
 export interface User {
   id: string;
+  _id?: string;
   fullName: string;
   email: string;
   role: UserRole;
-  createdAt: string;
+  createdAt?: string;
+}
+
+export type ExamDifficulty = 'easy' | 'medium' | 'hard';
+
+export interface Exam {
+  id?: string;
+  _id?: string;
+  title: string;
+  subject?: string;
+  difficulty?: ExamDifficulty;
+  description?: string;
+  duration: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Question {
+  id?: string;
+  _id?: string;
+  examId: string;
+  questionText: string;
+  options: string[];
+  correctAnswer?: string;
+  points: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Result {
+  id?: string;
+  _id?: string;
+  studentId: string;
+  examId: string;
+  score: number;
+  submittedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthContextType {

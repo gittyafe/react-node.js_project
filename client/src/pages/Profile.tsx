@@ -65,12 +65,31 @@ export const Profile: React.FC = () => {
   };
 
   return (
-    <Layout title="Profile" actions={<span className="text-gray-700">{user?.email}</span>}>
-      <div className="rounded-lg bg-white p-6 shadow">
-        <h2 className="text-2xl font-bold">My profile</h2>
-        <p className="mt-2 text-gray-600">Update your personal details and password.</p>
+    <Layout
+      title="פרופיל"
+      actions={
+        <>
+          <span className="user-greeting">{user?.email}</span>
+          <a className="header-button secondary" href="/dashboard">
+            חזרה לדף הבית
+          </a>
+        </>
+      }
+    >
+      <div className="section-panel profile-panel">
+        <div className="page-header-row">
+          <div>
+            <p className="eyebrow">חשבון</p>
+            <h2>הפרופיל שלי</h2>
+          </div>
+          <a className="primary-button small-button" href="/dashboard">
+            חזרה לדף הבית
+          </a>
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+        <p className="page-subtitle">עדכון שמות, מייל וסיסמה. לאחר שמירה אפשר לחזור בקלות לבית.</p>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="profile-form">
           <FormField
             label="שם מלא"
             name="fullName"
@@ -97,15 +116,20 @@ export const Profile: React.FC = () => {
             error={errors.password?.message}
           />
 
-          {message ? <p className="text-sm text-red-500">{message}</p> : null}
-          {success ? <p className="text-sm text-green-600">{success}</p> : null}
+          {message ? <p className="field-error">{message}</p> : null}
+          {success ? <p className="success-text">{success}</p> : null}
 
           {isLoading ? (
-            <LoadingSpinner label="Saving profile..." />
+            <LoadingSpinner label="שומר את הפרופיל..." />
           ) : (
-            <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-              Save changes
-            </button>
+            <div className="form-actions">
+              <button type="submit" className="primary-button">
+                שמור שינויים
+              </button>
+              <a href="/dashboard" className="ghost-button secondary-link">
+                חזור לבית
+              </a>
+            </div>
           )}
         </form>
       </div>

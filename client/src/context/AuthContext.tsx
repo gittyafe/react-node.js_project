@@ -8,6 +8,12 @@ type UpdateProfilePayload = {
   password?: string;
 };
 
+const normalizeUser = (raw: any): User => ({
+  ...raw,
+  id: raw?.id ?? raw?._id ?? raw?._id?.toString?.() ?? '',
+  role: raw?.role ?? 'student',
+});
+
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -22,8 +28,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       if (storedToken && storedUser) {
+        const parsedUser = JSON.parse(storedUser);
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        setUser(normalizeUser(parsedUser));
         setIsAuthenticated(true);
       }
     } catch (error) {
@@ -36,22 +43,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const persistSession = useCallback((newToken: string, newUser: User) => {
+    const safeUser = normalizeUser(newUser);
     localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
+    localStorage.setItem('user', JSON.stringify(safeUser));
     setToken(newToken);
-    setUser(newUser);
+    setUser(safeUser);
     setIsAuthenticated(true);
     setIsAuthReady(true);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const response = await apiClient.post<LoginResponse>('/auth/login', {
-        email,
+        email: normalizedEmail,
         password,
       });
 
-      persistSession(response.data.token, response.data.user);
+      persistSession(response.data.token, normalizeUser(response.data.user));
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -60,13 +69,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const register = useCallback(async (fullName: string, email: string, password: string) => {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const response = await apiClient.post<LoginResponse>('/auth/register', {
         fullName,
-        email,
+        email: normalizedEmail,
         password,
       });
 
-      persistSession(response.data.token, response.data.user);
+      persistSession(response.data.token, normalizeUser(response.data.user));
     } catch (error) {
       console.error('Register failed:', error);
       throw error;
@@ -79,8 +89,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const response = await apiClient.get<User>('/users/me');
-    setUser(response.data);
-    localStorage.setItem('user', JSON.stringify(response.data));
+    const nextUser = normalizeUser(response.data);
+    setUser(nextUser);
+    localStorage.setItem('user', JSON.stringify(nextUser));
   }, [token]);
 
   const updateProfile = useCallback(async (updates: UpdateProfilePayload) => {
@@ -89,8 +100,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const response = await apiClient.put<User>(`/users/${user.id}`, updates);
-    setUser(response.data);
-    localStorage.setItem('user', JSON.stringify(response.data));
+    const nextUser = normalizeUser(response.data);
+    setUser(nextUser);
+    localStorage.setItem('user', JSON.stringify(nextUser));
   }, [user?.id]);
 
   const logout = useCallback(() => {

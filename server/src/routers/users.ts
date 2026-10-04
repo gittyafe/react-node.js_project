@@ -1,10 +1,11 @@
 import express, { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
-import { AppDataSource } from '../config/data-source';
-import { User } from '../entities/users/User';
+import UserModel from '../models/User';
+import logger from '../config/logger';
 import { UserRole } from '../entities/users/user-role.enum';
 import { authMiddleware, roleMiddleware } from '../middleware/auth';
+import { canAccessUser, canUpdateUserRole } from '../config/permissions';
 
 const router = express.Router();
 
@@ -27,16 +28,15 @@ const updateUserSchema = z.object({
 type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
-  const userRepository = AppDataSource.getRepository(User);
-
   try {
-    const user = await userRepository.findOne({ where: { id: req.user?.id } });
+    const user = await UserModel.findById(req.user?.id).exec();
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-    return res.status(200).json(userWithoutPassword);
+    const userObj = user.toObject();
+    delete userObj.password;
+    return res.status(200).json(userObj);
   } catch (error) {
     console.error('Failed to fetch current user:', error);
     return res.status(500).json({ message: 'Internal server error' });
@@ -45,20 +45,19 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
 
 router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
   const { id } = req.params as { id: string };
-  const userRepository = AppDataSource.getRepository(User);
-
   try {
-    const user = await userRepository.findOne({ where: { id } });
+    const user = await UserModel.findById(id).exec();
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (req.user?.id !== user.id && req.user?.role !== UserRole.ADMIN) {
+    if (!canAccessUser(req.user, user._id.toString())) {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-    return res.status(200).json(userWithoutPassword);
+    const userObj = user.toObject();
+    delete userObj.password;
+    return res.status(200).json(userObj);
   } catch (error) {
     console.error('Failed to fetch user:', error);
     return res.status(500).json({ message: 'Internal server error' });
@@ -66,11 +65,13 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 });
 
 router.get('/', authMiddleware, roleMiddleware([UserRole.ADMIN]), async (_req: Request, res: Response) => {
-  const userRepository = AppDataSource.getRepository(User);
-
   try {
-    const users = await userRepository.find({ order: { createdAt: 'DESC' } });
-    const safeUsers = users.map(({ password, ...rest }) => rest);
+    const users = await UserModel.find().sort({ createdAt: -1 }).exec();
+    const safeUsers = users.map((u) => {
+      const o = u.toObject();
+      delete o.password;
+      return o;
+    });
     return res.status(200).json(safeUsers);
   } catch (error) {
     console.error('Failed to fetch users:', error);
@@ -86,26 +87,25 @@ router.post('/', authMiddleware, roleMiddleware([UserRole.ADMIN]), async (req: R
   }
 
   const { fullName, email, password, role = UserRole.STUDENT }: CreateUserInput = parsed.data;
-  const userRepository = AppDataSource.getRepository(User);
-
   try {
-    const existingUser = await userRepository.findOne({ where: { email: email as string } });
+    const existingUser = await UserModel.findOne({ email: email as string }).exec();
     if (existingUser) {
       return res.status(409).json({ message: 'User with this email already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password as string, 10);
-    const user = userRepository.create({
+    const newUser = new UserModel({
       fullName: fullName as string,
       email: email as string,
       password: hashedPassword,
       role: role as UserRole,
     });
 
-    const savedUser = await userRepository.save(user);
-    const { password: _, ...userWithoutPassword } = savedUser;
+    const savedUser = await newUser.save();
+    const userObj = savedUser.toObject();
+    delete userObj.password;
 
-    return res.status(201).json(userWithoutPassword);
+    return res.status(201).json(userObj);
   } catch (error) {
     console.error('Failed to create user:', error);
     return res.status(500).json({ message: 'Internal server error' });
@@ -120,40 +120,44 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
 
   const { id } = req.params as { id: string };
   const { fullName, email, password, role }: UpdateUserInput = parsed.data;
-  const userRepository = AppDataSource.getRepository(User);
+  const isAdmin = req.user?.role === UserRole.ADMIN;
 
   try {
-    const user = await userRepository.findOne({ where: { id } });
+    const user = await UserModel.findById(id).exec();
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (req.user?.id !== user.id && req.user?.role !== UserRole.ADMIN) {
+    const isSelf = req.user?.id === user._id.toString();
+
+    if (!canAccessUser(req.user, user._id.toString())) {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    if (email && email !== user.email) {
-      const existingUser = await userRepository.findOne({ where: { email: email as string } });
-      if (existingUser) {
+    if (!canUpdateUserRole(req.user) && role !== undefined) {
+      return res.status(403).json({ message: 'Only admins can change roles' });
+    }
+
+    const normalizedFullName = fullName !== undefined ? fullName.trim() : undefined;
+    const normalizedEmail = email !== undefined ? email.trim().toLowerCase() : undefined;
+
+    if (normalizedEmail && normalizedEmail !== user.email.toLowerCase()) {
+      const existingUser = await UserModel.findOne({ email: normalizedEmail }).exec();
+      if (existingUser && existingUser._id.toString() !== user._id.toString()) {
         return res.status(409).json({ message: 'User with this email already exists' });
       }
     }
 
-    const updatedFields: Partial<User> = {
-      fullName: (fullName ?? user.fullName) as string,
-      email: (email ?? user.email) as string,
-      role: (role ?? user.role) as UserRole,
-    };
+    if (normalizedFullName !== undefined) user.fullName = normalizedFullName;
+    if (normalizedEmail !== undefined) user.email = normalizedEmail;
+    if (isAdmin && role !== undefined) user.role = role as UserRole;
+    if (password) user.password = await bcrypt.hash(password as string, 10);
 
-    if (password) {
-      updatedFields.password = await bcrypt.hash(password as string, 10);
-    }
+    const savedUser = await user.save();
+    const userObj = savedUser.toObject();
+    delete userObj.password;
 
-    const updatedUser = userRepository.merge(user, updatedFields);
-    const savedUser = await userRepository.save(updatedUser);
-    const { password: _, ...userWithoutPassword } = savedUser;
-
-    return res.status(200).json(userWithoutPassword);
+    return res.status(200).json(userObj);
   } catch (error) {
     console.error('Failed to update user:', error);
     return res.status(500).json({ message: 'Internal server error' });
@@ -162,19 +166,17 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
 
 router.delete('/:id', authMiddleware, roleMiddleware([UserRole.ADMIN]), async (req: Request, res: Response) => {
   const { id } = req.params as { id: string };
-  const userRepository = AppDataSource.getRepository(User);
-
   try {
-    const user = await userRepository.findOne({ where: { id } });
+    const user = await UserModel.findById(id).exec();
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (req.user?.id === user.id) {
+    if (req.user?.id === user._id.toString()) {
       return res.status(400).json({ message: 'You cannot delete your own account' });
     }
 
-    await userRepository.remove(user);
+    await UserModel.deleteOne({ _id: id }).exec();
     return res.status(204).send();
   } catch (error) {
     console.error('Failed to delete user:', error);

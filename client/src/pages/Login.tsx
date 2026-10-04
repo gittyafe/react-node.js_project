@@ -16,11 +16,11 @@ export const Login: React.FC = () => {
 
   return (
     <AuthPage
-      title="Online Exam System"
+      title="התחברות"
       footer={
         <>
           אין לך חשבון?{' '}
-          <Link to="/register" className="text-blue-600 hover:underline">
+          <Link to="/register" className="inline-link">
             הירשם כאן
           </Link>
         </>

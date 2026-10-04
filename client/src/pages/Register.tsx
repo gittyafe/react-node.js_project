@@ -54,11 +54,11 @@ export const Register: React.FC = () => {
 
   return (
     <AuthPage
-      title="הרשמה למערכת"
+      title="הרשמה"
       footer={
         <>
           כבר רשום?{' '}
-          <Link to="/login" className="text-blue-600 hover:underline">
+          <Link to="/login" className="inline-link">
             התחבר כאן
           </Link>
         </>
